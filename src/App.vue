@@ -1,9 +1,20 @@
 <script setup>
 import zod from 'zod'
+
+const nonEmptyString = zod.preprocess(
+  (input) => {
+    if (input === '' || input === undefined || input === null) {
+      return undefined
+    }
+    return input
+  },
+  zod.union([zod.string(), zod.number()])
+)
+
 const initData = [
-  { code: 'ABC123', name: 'Product 1' },
+  { code: '', name: 'Product 1' },
   { code: 'DEF456', name: 'Product 2' },
-  { code: 'GHI789', name: 'Product 3' },
+  { code: 'GHI789', name: '' },
   { code: 'JKL012', name: 'Product 4' },
   { code: 'MNO345', name: 'Product 5' }
 ]
@@ -13,22 +24,42 @@ const columns = ref([
   { field: 'name', header: 'Name' }
 ])
 
-const vTempData = ref([])
-
 const itemSchema = zod.object({
-  code: zod.string(),
-  name: zod.string()
+  code: nonEmptyString,
+  name: nonEmptyString
+})
+// 初始化 驗證 與資料
+const { errors, handleSubmit } = useForm({
+  validationSchema: toTypedSchema(
+    // 對應 initailValues
+    zod.object({
+      vTempData: zod.array(itemSchema)
+    })
+  ),
+  initialValues: { vTempData: [] }
 })
 
-useForm({
-  validationSchema: toTypedSchema(zod.array(itemSchema)),
-  initialValues: vTempData
-})
+// 因為 fields 是 readonly 需使用它內建功能的去操作
+const { replace, push, update, remove, fields } = useFieldArray('vTempData')
 
-const { replace, fields } = useFieldArray('vTempData')
-
+// 將 fields 重新整理成 DataTable的格式 建立連接
+// key 是 vee-validate 的惟一值
 const converFields = computed(() => {
   return fields.value?.map((item) => ({ ...item.value, vKey: item.key })) || []
+})
+
+const addItem = () => {
+  push({
+    code: new Date().getTime(),
+    name: `Product ${converFields.value.length + 1}`
+  })
+}
+
+const removeMethod = (idx) => {
+  remove(idx)
+}
+const onSubmit = handleSubmit((values) => {
+  alert(JSON.stringify(values, null, 2))
 })
 onMounted(() => {
   replace([...initData])
@@ -44,16 +75,44 @@ onMounted(() => {
           <h2 class="text-center pt-3 mb-1">PrimeVue DataTable + Vee Validate (Zod) :</h2>
           <h3 class="text-center mb-3">array validation (simple CRUD)</h3>
           <div class="text-end">
-            <button class="btn btn-primary">新增</button>
+            <button @click="addItem" class="btn btn-sm btn-primary">新增</button>
           </div>
-          <DataTable :value="converFields" tableStyle="min-width: 50rem" datakey="vKey">
-            <Column v-for="col of columns" :key="col.field" :field="col.field" :header="col.header">
-              <template #body="slotProps">
-                <!-- {{ slotProps.data[`${col.field}`] }} -->
-                <VeeInput :value="slotProps.data[`${col.field}`]"></VeeInput>
+          <form @submit="onSubmit">
+            <DataTable :value="converFields" datakey="vKey">
+              <Column
+                v-for="col of columns"
+                :key="col.field"
+                :field="col.field"
+                :header="col.header"
+              >
+                <template #body="slotProps">
+                  <VeeInput
+                    :value="slotProps.data[`${col.field}`]"
+                    :updateSingleColumn="update"
+                    :index="slotProps.index"
+                    :data="slotProps.data"
+                    :columnName="col.field"
+                    :name="`vTempData[${slotProps.index}].${col.field}`"
+                    :errors="errors"
+                  ></VeeInput>
+                </template>
+              </Column>
+              <Column header="操作">
+                <template #body="slotProps">
+                  <button
+                    class="btn btn-sm btn-danger"
+                    type="button"
+                    @click="removeMethod(slotProps.index)"
+                  >
+                    刪除
+                  </button>
+                </template>
+              </Column>
+              <template #empty>
+                <div class="text-center">無資料</div>
               </template>
-            </Column>
-          </DataTable>
+            </DataTable>
+          </form>
         </div>
       </div>
     </div>
