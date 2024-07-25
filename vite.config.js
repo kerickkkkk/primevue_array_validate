@@ -9,6 +9,7 @@ import AutoImport from 'unplugin-auto-import/vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/primevue_array_validate/', // Replace 'your-base-url' with your actual base URL
   plugins: [
     vue(),
     vueDevTools(),
@@ -18,21 +19,16 @@ export default defineConfig({
     }),
     AutoImport({
       // targets to transform
-      include: [
-        /\.vue\?vue/ // .vue
-      ],
+      include: [/\.vue$/],
 
       // global imports to register
       imports: [
         // presets
         'vue',
         'vue-router',
-
-        // example type import
+        'vee-validate',
         {
-          from: 'vue-router',
-          imports: ['RouteLocationRaw'],
-          type: true
+          '@vee-validate/zod': ['toTypedSchema']
         }
       ],
       eslintrc: {
